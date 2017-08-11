@@ -22,8 +22,7 @@ b = YaBiGooo(zoom=19, max_threads=1)
 b.downloadTiles()
 ```
 
-After all the tiles have been downloaded, run stitchTiles.py to merge files
-and then crop it to fit the bounding rectangle
+After all the tiles have been downloaded, all tiles can be merged and georeferenced
 
 ```Batchfile
 b.stitchTiles()
