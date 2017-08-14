@@ -94,16 +94,24 @@ class YaBiGooo:
         count = 0.
         tot = len(Xs) * len(Ys)
 
+        # start_tile = Tile.for_latitude_longitude(self.lat_start, self.lon_start, self.zoom)
+        # stop_tile = Tile.for_latitude_longitude(self.lat_stop, self.lon_stop, self.zoom)
+        # start_x, start_y = start_tile.google
+        # stop_x, stop_y = stop_tile.google
+        # Xs = range(start_x, stop_x)
+        # Ys = range(start_y, stop_y)
+
         # for x in Xs[80:100]:
         #     vertical_list = []
         #     for y in Ys[50:110]:
+
         for x in Xs:
             vertical_list = []
             for y in Ys:
 
                 img = cv2.imread(self.img_dir + '/{}_{}_{}_{}_{}.jpeg'.format(self.map, self.mode, self.zoom, x, y))
 
-                # check if tile image has no data, and replace it with transparent tile
+                # # check if tile image has no data, and replace it with transparent tile
                 if count_nonzero(img == errorImage) == 196608:
                     img = emptyImage
 
@@ -123,12 +131,39 @@ class YaBiGooo:
 
         del vert_hor_list  # clean up
 
+        # fnl_img = None
+        # for x in Xs[:210]:
+        #     vertical = None
+        #     for y in Ys[:110]:
+        #         img = cv2.imread(self.img_dir + '/{}_{}_{}_{}_{}.jpeg'.format(self.map, self.mode, self.zoom, x, y))
+        #         if vertical is None:
+        #             vertical = img
+        #         else:
+        #             vertical = concatenate((vertical, img), axis=0)
+        #         count += 1.
+        #         prog = count / tot * 100
+        #         print('\rCompleted: {:.2f}%'.format(prog), end=' ')
+        #
+        #     if fnl_img is None:
+        #         fnl_img = vertical
+        #     else:
+        #         fnl_img = concatenate((fnl_img, vertical), axis=1)
+
+        # fnl_img = cv2.convertScaleAbs(fnl_img)
+        # fnl_img = cv2.cvtColor(fnl_img, cv2.COLOR_RGB2GRAY)
+        # fnl_img = cv2.cvtColor(fnl_img, cv2.COLOR_GRAY2RGB)
+
         print('\nWriting to disk ...')
 
         # cv2.imwrite('stitched.png', fnl_img, [int(cv2.IMWRITE_PNG_COMPRESSION), 2])
-        # cv2.imwrite('stitched.jpg', fnl_img, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+        # cv2.imwrite('stitched.jpg', fnl_img, [int(cv2.IMWRITE_JPEG_QUALITY), 100, cv2.IMWRITE_JPEG_PROGRESSIVE, 1, cv2.IMWRITE_JPEG_OPTIMIZE, 1])
         # Note, that writing to bmp is faster than to jpeg and faster than to png
+        # cv2.imwrite('stitched.bmp', fnl_img)
+
         cv2.imwrite('stitched.bmp', fnl_img)
+
+        # from scipy.misc import imsave
+        # imsave('stitched.jpg', fnl_img)
 
         print('Stitching Complete!')
 
@@ -154,20 +189,22 @@ class YaBiGooo:
         else:
             a_srs = 'EPSG:4326'
 
-        os.system("gdal_translate -of GTiff -co BIGTIFF=YES -co NUM_THREADS=8 -a_nodata 0 -a_ullr " +
+        os.system("gdal_translate -of GTiff -co BIGTIFF=YES -co NUM_THREADS=8 -a_ullr " +
                   str(point_start.meters[0]) + " " +
                   str(point_start.meters[1]) + " " +
                   str(point_stop.meters[0]) + " " +
                   str(point_stop.meters[1]) + " " +
                   "-a_srs " + a_srs + " stitched.bmp result.tif")
-        # os.system("gdalwarp --config GDAL_CACHEMAX 500 -wm 500 -dstalpha -srcnodata 0 -dstnodata 0 -overwrite -wo
-        # NUM_THREADS=8 result.tif result2.tif ")
+        # os.system(
+        #     "gdalwarp --config GDAL_CACHEMAX 32000 -wm 1500 -dstalpha -srcnodata 0 -dstnodata 0 -overwrite -wo "
+        #     "NUM_THREADS=8 result.tif result2.tif ")
+
         os.system(
-                "gdalwarp --config -dstalpha -srcnodata 0 -dstnodata 0 -overwrite -wo NUM_THREADS=8 result.tif "
-                "result2.tif ")
+                "gdalwarp -dstalpha -srcnodata 0 -dstnodata 0 -overwrite -wo NUM_THREADS=8 result.tif result2.tif ")
         os.system(
-                "gdal_translate -of GTiff -co COMPRESS=LZW -co BIGTIFF=YES -co NUM_THREADS=8 result2.tif " + self.map +
-                "_gcps.tif")
+                "gdal_translate -of GTiff -co COMPRESS=LZW -co BIGTIFF=YES -co NUM_THREADS=8 result2.tif " +
+                self.map + "_gcps.tif")
+
         os.remove('result.tif')
         os.remove('result2.tif')
 
