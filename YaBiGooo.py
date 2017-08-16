@@ -5,6 +5,7 @@ import urllib
 from random import random, shuffle
 
 import cv2
+import tifffile
 from numpy import count_nonzero, uint8, zeros
 from pygeotile.point import Point
 from pygeotile.tile import Tile
@@ -61,6 +62,7 @@ class YaBiGooo:
                 self.url = 'http://a0.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=2'.format(tile.quad_tree)
 
         elif 'yandex' in self.map:
+
             if self.mode == 'map':
                 self.url = 'https://vec02.maps.yandex.net/tiles?l=map&v=17.08.08-0&x=' + str(self.x) + \
                            '&y=' + str(self.y) + '&z=' + str(self.zoom) + '&scale=1&lang=ru_RU'
@@ -149,21 +151,22 @@ class YaBiGooo:
         #     else:
         #         fnl_img = concatenate((fnl_img, vertical), axis=1)
 
-        # fnl_img = cv2.convertScaleAbs(fnl_img)
-        # fnl_img = cv2.cvtColor(fnl_img, cv2.COLOR_RGB2GRAY)
         # fnl_img = cv2.cvtColor(fnl_img, cv2.COLOR_GRAY2RGB)
+        # fnl_img = cv2.cvtColor(fnl_img, cv2.COLOR_RGB2GRAY)
+        fnl_img = cv2.cvtColor(fnl_img, cv2.COLOR_BGR2RGB)  # convert from BGR to RGB before saving with tifffile
 
         print('\nWriting to disk ...')
 
         # cv2.imwrite('stitched.png', fnl_img, [int(cv2.IMWRITE_PNG_COMPRESSION), 2])
-        # cv2.imwrite('stitched.jpg', fnl_img, [int(cv2.IMWRITE_JPEG_QUALITY), 100, cv2.IMWRITE_JPEG_PROGRESSIVE, 1, cv2.IMWRITE_JPEG_OPTIMIZE, 1])
+        # cv2.imwrite('stitched.jpg', fnl_img, [int(cv2.IMWRITE_JPEG_QUALITY), 100, cv2.IMWRITE_JPEG_PROGRESSIVE, 1,
+        # cv2.IMWRITE_JPEG_OPTIMIZE, 1])
         # Note, that writing to bmp is faster than to jpeg and faster than to png
         # cv2.imwrite('stitched.bmp', fnl_img)
 
-        cv2.imwrite('stitched.bmp', fnl_img)
+        # self.fnl_img = fnl_img
 
-        # from scipy.misc import imsave
-        # imsave('stitched.jpg', fnl_img)
+        with tifffile.TiffWriter('stitched.tif', bigtiff=True) as tif:
+            tif.save(fnl_img, compress=0)
 
         print('Stitching Complete!')
 
@@ -194,13 +197,15 @@ class YaBiGooo:
                   str(point_start.meters[1]) + " " +
                   str(point_stop.meters[0]) + " " +
                   str(point_stop.meters[1]) + " " +
-                  "-a_srs " + a_srs + " stitched.bmp result.tif")
+                  "-a_srs " + a_srs + " stitched.tif result.tif")
         # os.system(
         #     "gdalwarp --config GDAL_CACHEMAX 32000 -wm 1500 -dstalpha -srcnodata 0 -dstnodata 0 -overwrite -wo "
         #     "NUM_THREADS=8 result.tif result2.tif ")
 
         os.system(
-                "gdalwarp -dstalpha -srcnodata 0 -dstnodata 0 -overwrite -wo NUM_THREADS=8 result.tif result2.tif ")
+                "gdalwarp -dstalpha -srcnodata 0 -dstnodata 0 -overwrite -wo NUM_THREADS=8 -co BIGTIFF=YES " +
+                "-s_srs " + a_srs + " -t_srs EPSG:4326 result.tif result2.tif ")
+
         os.system(
                 "gdal_translate -of GTiff -co COMPRESS=LZW -co BIGTIFF=YES -co NUM_THREADS=8 result2.tif " +
                 self.map + "_gcps.tif")
