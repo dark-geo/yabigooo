@@ -19,22 +19,25 @@ import time
 
 
 class YaBiGooo:
-    """
-
+    """YaBiGooo downloads the relevant map tiles from Yandex/Bing/Google servers. Bing map tiles are downloaded by default.
     """
 
     def __init__(self, **kwargs):
         """
-
-        :param mode:
-        :param zoom:
-        :param lat_start:
-        :param lat_stop:
-        :param lon_start:
-        :param lon_stop:
-        :param max_threads:
-        :param DEBUG:
-        :param ERR:
+        :param map: choose the source among 'bing', 'yandex' or 'google' map
+        :param mode: 'satellite' or 'map'
+        :param zoom: zoom level
+        :param x: generated x tile for download
+        :param y: generated y tile for download
+        :param img_dir: tiles download location
+        :param lat_start: starting latitude
+        :param lat_stop: ending latitude
+        :param lon_start: starting longitude
+        :param lon_stop: ending longitude
+        :param max_threads: number of threads to spawn
+        :param DEBUG: set if one wants to print debug info
+        :param ERR: set if one wants to print error messages
+        :param url: generated url for download
         """
         self.map = kwargs.get('map', 'bing')
         self.mode = kwargs.get('mode', 'satellite')

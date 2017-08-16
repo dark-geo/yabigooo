@@ -1,6 +1,6 @@
 # Yandex/Bing/Google Map Tile Downlaoder/Stitcher
 
-**Requirements:** Python 3, cv2, pygeotile, fake_useragent
+**Requirements:** Python 3, cv2, pygeotile, fake_useragent, tifffile
 
 **Input:** Top Latitude, Top Longitude, Bottom Latitude, Bottom Longitude
 
