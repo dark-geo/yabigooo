@@ -11,18 +11,19 @@
 YaBiGooo.py downloads the relevant map tiles from corresponding servers. Bing by default.
 
 **NOTE:** There is a small random sleep time set for each tile.
-          While Bing doesn't ban you it is better to use 1 thread, as sleep time is randomly cjosen between 0 and 1 sec.
+          While Bing doesn't ban you it is better to use 1 thread, as sleep time is randomly chosen between 0 and 1 sec.
           For Yandex and Google there is a larger random sleep time set for each tile.
           All of the tiles are randomly shuffled before download.
           Fake user agent is used for tiles download.
 
 ```Batchfile
 from YaBiGooo import YaBiGooo
-b = YaBiGooo(zoom=19, max_threads=1)
-b.downloadTiles()
+b = YaBiGooo(zoom=19, max_threads=1, img_dir='/home/magican/Documents/prj/repos/yabigooo/images/', DEBUG=True,
+            lat_start=44.7, lat_stop=44.65)
+
 ```
 
-After all the tiles have been downloaded, all tiles can be merged and georeferenced
+After all of the tiles have been downloaded, they can be merged and georeferenced.
 
 ```Batchfile
 b.stitchTiles()

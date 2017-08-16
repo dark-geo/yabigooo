@@ -6,7 +6,7 @@ from random import random, shuffle
 
 import cv2
 import tifffile
-from numpy import count_nonzero, uint8, zeros
+from numpy import count_nonzero, ndarray, uint8, zeros
 from pygeotile.point import Point
 from pygeotile.tile import Tile
 
@@ -19,7 +19,8 @@ import time
 
 
 class YaBiGooo:
-    """YaBiGooo downloads the relevant map tiles from Yandex/Bing/Google servers. Bing map tiles are downloaded by default.
+    """YaBiGooo downloads the relevant map tiles from Yandex/Bing/Google servers. Bing map tiles are downloaded by
+    default.
     """
 
     def __init__(self, **kwargs):
@@ -54,6 +55,22 @@ class YaBiGooo:
         self.ERR = kwargs.get('ERR', True)
         self.url = None
 
+    def tiles_in_dir(self):
+        """
+
+        :return:
+        """
+        _, __, files = list(os.walk(self.img_dir))[0]
+
+        files.sort(key=lambda x: (int(x.split('_')[3]), int(x.split('_')[4].split('.')[0])))
+
+        tilX = lambda x: int(x.split('_')[3])
+        tilY = lambda x: int(x.split('_')[4].split('.')[0])
+
+        Xs = sorted(list(set([tilX(x) for x in files])))
+        Ys = sorted(list(set([tilY(x) for x in files])))
+        return Xs, Ys
+
     def getTileUrl(self):
         """
         https://github.com/emdete/tabulae/blob/7751d7cd4d366f2ef4ba46dbc5b8f5fb2114ac58/provider.py
@@ -80,22 +97,29 @@ class YaBiGooo:
         """
         print('Stitching Tiles ...')
 
-        _, __, files = list(os.walk(self.img_dir))[0]
-
-        files.sort(key=lambda x: (int(x.split('_')[3]), int(x.split('_')[4].split('.')[0])))
-
-        tilX = lambda x: int(x.split('_')[3])
-        tilY = lambda x: int(x.split('_')[4].split('.')[0])
-
-        Xs = sorted(list(set([tilX(x) for x in files])))
-        Ys = sorted(list(set([tilY(x) for x in files])))
-
+        # initiating list for concatenating tiles
         vert_hor_list = []
+
+        # get list of tiles in download folder
+        Xs, Ys = self.tiles_in_dir()
 
         # read error (no data) and empty (transparent) tile images
         errorImage = cv2.imread(os.path.dirname(os.path.realpath(__file__)) + '/Error.png')
         emptyImage = zeros([256, 256, 3], dtype=uint8)
 
+        # get start and stop tiles
+        start_x, start_y = min(Xs), min(Ys)
+        stop_x, stop_y = max(Xs), max(Ys)
+
+        # adding +1 for further range()
+        stop_x += 1
+        stop_y += 1
+
+        # Stitching tiles is done over a range list, if some tiles are missing - we replace them with transparent
+        Xs = range(start_x, stop_x)
+        Ys = range(start_y, stop_y)
+
+        # initiate progress counter
         count = 0.
         tot = len(Xs) * len(Ys)
 
@@ -112,9 +136,13 @@ class YaBiGooo:
 
         for x in Xs:
             vertical_list = []
-            for y in Ys:
 
+            for y in Ys:
                 img = cv2.imread(self.img_dir + '/{}_{}_{}_{}_{}.jpeg'.format(self.map, self.mode, self.zoom, x, y))
+
+                # if some tiles are missing in download folder - we replace them with transparent
+                if not isinstance(img, ndarray):
+                    img = zeros([256, 256, 3], dtype=uint8)
 
                 # # check if tile image has no data, and replace it with transparent tile
                 if count_nonzero(img == errorImage) == 196608:
@@ -130,7 +158,7 @@ class YaBiGooo:
             vertical_images = cv2.vconcat(vertical_list)
             vert_hor_list.append(vertical_images)
 
-        del vertical_list, Xs, Ys, files  # clean up
+        del vertical_list, Xs, Ys  # clean up
 
         fnl_img = cv2.hconcat(vert_hor_list)
 
@@ -180,8 +208,16 @@ class YaBiGooo:
         """
         print('Georeferencing ...')
 
-        tile_start = Tile.for_latitude_longitude(self.lat_start, self.lon_start, self.zoom)
-        tile_stop = Tile.for_latitude_longitude(self.lat_stop, self.lon_stop, self.zoom)
+        # tile_start = Tile.for_latitude_longitude(self.lat_start, self.lon_start, self.zoom)
+        # tile_stop = Tile.for_latitude_longitude(self.lat_stop, self.lon_stop, self.zoom)
+
+        Xs, Ys = self.tiles_in_dir()
+
+        start_x, start_y = min(Xs), min(Ys)
+        stop_x, stop_y = max(Xs), max(Ys)
+
+        tile_start = Tile.from_google(start_x, start_y, self.zoom)
+        tile_stop = Tile.from_google(stop_x, stop_y, self.zoom)
 
         point_start = Point.from_latitude_longitude(max(tile_start.bounds[0][0], tile_start.bounds[1][0]),
                                                     min(tile_start.bounds[0][1], tile_start.bounds[1][1]))
