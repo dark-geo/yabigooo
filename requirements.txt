@@ -1,0 +1,6 @@
+fake_useragent
+numpy
+opencv-contrib-python
+opencv-python
+pyGeoTile
+tifffile
