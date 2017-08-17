@@ -14,11 +14,11 @@ YaBiGooo.py downloads the relevant map tiles from corresponding servers. Bing by
           While Bing doesn't ban you it is better to use 1 thread, as sleep time is randomly chosen between 0 and 1 sec.
           For Yandex and Google there is a larger random sleep time set for each tile.
           All of the tiles are randomly shuffled before download.
-          Fake user agent is used for tiles download.
+          Fake user agent is used for UA simulation.
 
 ```Batchfile
 from YaBiGooo import YaBiGooo
-b = YaBiGooo(zoom=19, max_threads=1, img_dir='/home/magican/Documents/prj/repos/yabigooo/images/', DEBUG=True,
+b = YaBiGooo(zoom=19, max_threads=1, DEBUG=True,
             lat_start=44.7, lat_stop=44.65)
 
 ```

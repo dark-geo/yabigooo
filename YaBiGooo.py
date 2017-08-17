@@ -1,7 +1,7 @@
 import os
 import sys
-import threading
 import urllib
+from multiprocessing.pool import ThreadPool
 from random import random, shuffle
 
 import cv2
@@ -39,6 +39,7 @@ class YaBiGooo:
         :param DEBUG: set if one wants to print debug info
         :param ERR: set if one wants to print error messages
         :param url: generated url for download
+        :param urls: generated list of urls for download
         """
         self.map = kwargs.get('map', 'bing')
         self.mode = kwargs.get('mode', 'satellite')
@@ -46,14 +47,17 @@ class YaBiGooo:
         self.x = kwargs.get('x', 2)
         self.y = kwargs.get('y', 2)
         self.img_dir = kwargs.get('img_dir', os.path.dirname(os.path.realpath(__file__)) + '/images')
-        self.lat_start = kwargs.get('lat_start', 44.65)
+        self.lat_start = kwargs.get('lat_start', 44.8)
         self.lat_stop = kwargs.get('lat_stop', 44.487067)
         self.lon_start = kwargs.get('lon_start', 33.376973)
-        self.lon_stop = kwargs.get('lon_stop', 33.63)
+        self.lon_stop = kwargs.get('lon_stop', 33.689906)
         self.max_threads = kwargs.get('max_threads', 1)
         self.DEBUG = kwargs.get('DEBUG', True)
         self.ERR = kwargs.get('ERR', True)
         self.url = None
+        self.urls = []
+        self.fnms = []
+        self.headers = []
 
     def tiles_in_dir(self):
         """
@@ -99,6 +103,8 @@ class YaBiGooo:
 
         # initiating list for concatenating tiles
         vert_hor_list = []
+        vertical_list = []
+        vertical_images = None
 
         # get list of tiles in download folder
         Xs, Ys = self.tiles_in_dir()
@@ -142,10 +148,10 @@ class YaBiGooo:
 
                 # if some tiles are missing in download folder - we replace them with transparent
                 if not isinstance(img, ndarray):
-                    img = zeros([256, 256, 3], dtype=uint8)
+                    img = emptyImage
 
                 # # check if tile image has no data, and replace it with transparent tile
-                if count_nonzero(img == errorImage) == 196608:
+                elif count_nonzero(img == errorImage) == 196608:
                     img = emptyImage
 
                 vertical_list.append(img)
@@ -158,7 +164,7 @@ class YaBiGooo:
             vertical_images = cv2.vconcat(vertical_list)
             vert_hor_list.append(vertical_images)
 
-        del vertical_list, Xs, Ys  # clean up
+        del vertical_list, vertical_images, Xs, Ys  # clean up
 
         fnl_img = cv2.hconcat(vert_hor_list)
 
@@ -231,26 +237,21 @@ class YaBiGooo:
         else:
             a_srs = 'EPSG:4326'
 
+        # Georeferencing
         os.system("gdal_translate -of GTiff -co BIGTIFF=YES -co NUM_THREADS=8 -a_ullr " +
                   str(point_start.meters[0]) + " " +
                   str(point_start.meters[1]) + " " +
                   str(point_stop.meters[0]) + " " +
                   str(point_stop.meters[1]) + " " +
                   "-a_srs " + a_srs + " stitched.tif result.tif")
-        # os.system(
-        #     "gdalwarp --config GDAL_CACHEMAX 32000 -wm 1500 -dstalpha -srcnodata 0 -dstnodata 0 -overwrite -wo "
-        #     "NUM_THREADS=8 result.tif result2.tif ")
-
+        # warping with conversion to RGBA
+        # --config GDAL_CACHEMAX 32000 - wm 1500
         os.system(
-                "gdalwarp -dstalpha -srcnodata 0 -dstnodata 0 -overwrite -wo NUM_THREADS=8 -co BIGTIFF=YES " +
-                "-s_srs " + a_srs + " -t_srs EPSG:4326 result.tif result2.tif ")
-
-        os.system(
-                "gdal_translate -of GTiff -co COMPRESS=LZW -co BIGTIFF=YES -co NUM_THREADS=8 result2.tif " +
-                self.map + "_gcps.tif")
+                "gdalwarp -dstalpha -srcnodata 0 -dstnodata 0 -overwrite -wo NUM_THREADS=8 " +
+                "-co COMPRESS=PACKBITS -co BIGTIFF=YES " +
+                "-s_srs " + a_srs + " -t_srs EPSG:4326 result.tif  " + self.map + "_gcps.tif")
 
         os.remove('result.tif')
-        os.remove('result2.tif')
 
         print('Georeferencing Complete!')
 
@@ -266,8 +267,6 @@ class YaBiGooo:
             ua = UserAgent()
         except:
             pass
-
-        spawn_count = 0
 
         # convert lat/lon to google tiles
         start_tile = Tile.for_latitude_longitude(self.lat_start, self.lon_start, self.zoom)
@@ -298,70 +297,62 @@ class YaBiGooo:
         shuffle(rndm_x)
         shuffle(rndm_y)
 
-        # prepare counter
-        tot = (stop_x - start_x) * (stop_y - start_y)
-        count = 0.
-
+        # generating list of urls, filenames and fake UA for download
         for x in rndm_x:
             for y in rndm_y:
 
                 self.x = x
                 self.y = y
-                self.getTileUrl()
 
                 filename = self.img_dir + "/%s_%s_%d_%d_%d.%s" % (
                     self.map, self.mode, self.zoom, self.x, self.y, 'jpeg')
 
                 if os.path.exists(filename):
-                    count += 1
+                    continue
                 elif not os.path.exists(filename):
+                    self.getTileUrl()  # getting tile url
+
+                    self.urls.append(self.url)  # appending url to list of urls
+                    self.fnms.append(filename)  # appending corresponding filename
+                    # generating fake US
                     try:
                         user_agent = ua.random
                         headers = {'User-Agent': user_agent}
                     except:
                         pass
+                    # appending corresponding header
+                    self.headers.append(headers)
 
-                    if self.max_threads > 1:
-                        threads = []
-                        for i in range(self.max_threads):
-                            t = threading.Thread(target=self.worker, args=(self.url, filename, user_agent, headers))
-                            t.start()
-                            threads.append(t)
-                            spawn_count += 1
-                            time.sleep(random() / self.max_threads)
+        # prepare counter
+        # tot = (stop_x - start_x) * (stop_y - start_y)
+        tot = len(self.urls)
+        count = 0.
 
-                        if self.DEBUG:
-                            # for not shuffled list
-                            # x_percent = float((start_x - x)) / float(start_x - stop_x)
-                            # y_percent = float((start_y - y)) / float(start_y - stop_y)
-                            # print('\r-- Spawned Workers {:.0f}. Completed: x={:.2f}, y={:.2f} '.format(
-                            #         spawn_count, 100 * x_percent, 100 * y_percent), end='  ')
-                            # for shuffled list
-                            count += 1.
-                            prog = (count / tot) * 100
-                            print('\rCompleted: {:.2f}%'.format(prog), end=' ')
+        # download urls
+        pool = ThreadPool(self.max_threads)
+        for results in pool.imap_unordered(self.worker, zip(self.urls, self.fnms, self.headers)):
 
-                        for i in range(len(threads)):
-                            threads[i].join()
+            if 'yandex' in self.url or 'google' in self.url:
+                time.sleep(5 + random())
+            # else:
+            #     time.sleep(random() / self.max_threads)
 
-                    else:
-                        self.worker(self.url, filename, user_agent, headers, self.ERR)
+            if self.DEBUG:
+                # for not shuffled list
+                # x_percent = float((start_x - x)) / float(start_x - stop_x)
+                # y_percent = float((start_y - y)) / float(start_y - stop_y)
+                # print('\r-- Spawned Workers {:.0f}. Completed: x={:.2f}, y={:.2f} '.format(
+                #         spawn_count, 100 * x_percent, 100 * y_percent), end='  ')
+                # for shuffled list
+                count += 1.
+                prog = (count / tot) * 100
+                print('\rCompleted: {:.2f}%'.format(prog), end=' ')
 
-                        if self.DEBUG:
-                            # x_percent = float((start_x - x)) / float(start_x - stop_x)
-                            # y_percent = float((start_y - y)) / float(start_y - stop_y)
-                            # print('\r-- Completed: x={:.2f}, y={:.2f} '.format(
-                            #         100 * x_percent, 100 * y_percent), end='  ')
-                            count += 1.
-                            prog = (count / tot) * 100
-                            print('\rCompleted: {:.2f}%'.format(prog), end=' ')
-
-                    if 'yandex' in self.url or 'google' in self.url:
-                        time.sleep(5 + random())
         print("Download Complete!")
 
     @staticmethod
-    def worker(url, filename, user_agent, headers, ERR=True):
+    def worker(args, ERR = True):
+        url, filename, headers = args
         data = None
         try:
             req = urllib.request.Request(url, data=None, headers=headers)
