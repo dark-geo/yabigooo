@@ -2,7 +2,7 @@ import os
 import sys
 import urllib
 from multiprocessing.pool import ThreadPool
-from random import random, shuffle
+from random import randint, random, shuffle
 
 import cv2
 import tifffile
@@ -26,7 +26,7 @@ class YaBiGooo:
     def __init__(self, **kwargs):
         """
         :param map: choose the source among 'bing', 'yandex' or 'google' map
-        :param mode: 'satellite' or 'map'
+        :param mode: 'satellite' or 'road'
         :param zoom: zoom level
         :param x: generated x tile for download
         :param y: generated y tile for download
@@ -41,7 +41,7 @@ class YaBiGooo:
         :param url: generated url for download
         :param urls: generated list of urls for download
         """
-        self.map = kwargs.get('map', 'bing')
+        self.map = kwargs.get('road', 'bing')
         self.mode = kwargs.get('mode', 'satellite')
         self.zoom = kwargs.get('zoom', 2)
         self.x = kwargs.get('x', 2)
@@ -82,12 +82,15 @@ class YaBiGooo:
         tile = Tile.from_google(self.x, self.y, self.zoom)
 
         if 'bing' in self.map:
-            if self.mode == 'satellite':
-                self.url = 'http://a0.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=2'.format(tile.quad_tree)
+            if self.mode == 'road':
+                self.url = 'http://ecn.dynamic.t{}.tiles.virtualearth.net/comp/CompositionHandler/r{}.jpeg?mkt=ru-ru&' \
+                'it=G,VE,BX,L,LA&shading=hill&g=94'.format(randint(0, 3), tile.quad_tree)
+            elif self.mode == 'satellite':
+                self.url = 'http://a{}.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=94'.format(randint(0, 3),
+                                                                                                tile.quad_tree)
 
         elif 'yandex' in self.map:
-
-            if self.mode == 'map':
+            if self.mode == 'road':
                 self.url = 'https://vec02.maps.yandex.net/tiles?l=map&v=17.08.08-0&x=' + str(self.x) + \
                            '&y=' + str(self.y) + '&z=' + str(self.zoom) + '&scale=1&lang=ru_RU'
             elif self.mode == 'satellite':
@@ -202,7 +205,7 @@ class YaBiGooo:
 
         # self.fnl_img = fnl_img
 
-        with tifffile.TiffWriter('stitched.tif', bigtiff=True) as tif:
+        with tifffile.TiffWriter(self.map + "_" + self.mode + "_stitched.tif", bigtiff=True) as tif:
             tif.save(fnl_img, compress=0)
 
         print('Stitching Complete!')
@@ -243,13 +246,13 @@ class YaBiGooo:
                   str(point_start.meters[1]) + " " +
                   str(point_stop.meters[0]) + " " +
                   str(point_stop.meters[1]) + " " +
-                  "-a_srs " + a_srs + " stitched.tif result.tif")
+                  "-a_srs " + a_srs + " " + self.map + "_" + self.mode + "_stitched.tif result.tif")
         # warping with conversion to RGBA
         # --config GDAL_CACHEMAX 32000 - wm 1500
         os.system(
                 "gdalwarp -dstalpha -srcnodata 0 -dstnodata 0 -overwrite -wo NUM_THREADS=8 " +
                 "-co COMPRESS=PACKBITS -co BIGTIFF=YES " +
-                "-s_srs " + a_srs + " -t_srs EPSG:4326 result.tif  " + self.map + "_gcps.tif")
+                "-s_srs " + a_srs + " -t_srs EPSG:4326 result.tif  " + self.map + "_" + self.mode + "_gcps.tif")
 
         os.remove('result.tif')
 
@@ -278,9 +281,9 @@ class YaBiGooo:
         stop_x += 1
         stop_y += 1
 
-        if self.DEBUG: print(("x range", start_x, stop_x))
-        if self.DEBUG: print(("y range", start_y, stop_y))
-        if self.DEBUG: print(("Total Tiles: ", (stop_x - start_x) * (stop_y - start_y)))
+        if self.DEBUG: print("x range", start_x, stop_x)
+        if self.DEBUG: print("y range", start_y, stop_y)
+        if self.DEBUG: print("Total Tiles: ", (stop_x - start_x) * (stop_y - start_y))
 
         # set default UA if no fake_useragent specified
         user_agent = 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_9; us-at) AppleWebKit/533.23.1 (KHTML, ' \
@@ -328,6 +331,8 @@ class YaBiGooo:
         tot = len(self.urls)
         count = 0.
 
+        if self.DEBUG: print("Total Tiles for Download: ", tot)
+
         # download urls
         pool = ThreadPool(self.max_threads)
         for results in pool.imap_unordered(self.worker, zip(self.urls, self.fnms, self.headers)):
@@ -351,7 +356,7 @@ class YaBiGooo:
         print("Download Complete!")
 
     @staticmethod
-    def worker(args, ERR = True):
+    def worker(args, ERR=True):
         url, filename, headers = args
         data = None
         try:
