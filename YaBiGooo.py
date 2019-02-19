@@ -84,7 +84,7 @@ class YaBiGooo:
         if 'bing' in self.map:
             if self.mode == 'road':
                 self.url = 'http://ecn.dynamic.t{}.tiles.virtualearth.net/comp/CompositionHandler/r{}.jpeg?mkt=ru-ru&' \
-                'it=G,VE,BX,L,LA&shading=hill&g=94'.format(randint(0, 3), tile.quad_tree)
+                           'it=G,VE,BX,L,LA&shading=hill&g=94'.format(randint(0, 3), tile.quad_tree)
             elif self.mode == 'satellite':
                 self.url = 'http://a{}.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=94'.format(randint(0, 3),
                                                                                                 tile.quad_tree)
@@ -250,9 +250,9 @@ class YaBiGooo:
         # warping with conversion to RGBA
         # --config GDAL_CACHEMAX 32000 - wm 1500
         os.system(
-                "gdalwarp -dstalpha -srcnodata 0 -dstnodata 0 -overwrite -wo NUM_THREADS=8 " +
-                "-co COMPRESS=PACKBITS -co BIGTIFF=YES " +
-                "-s_srs " + a_srs + " -t_srs EPSG:4326 result.tif  " + self.map + "_" + self.mode + "_gcps.tif")
+            "gdalwarp -dstalpha -srcnodata 0 -dstnodata 0 -overwrite -wo NUM_THREADS=8 " +
+            "-co COMPRESS=PACKBITS -co BIGTIFF=YES " +
+            "-s_srs " + a_srs + " -t_srs EPSG:4326 result.tif  " + self.map + "_" + self.mode + "_gcps.tif")
 
         os.remove('result.tif')
 

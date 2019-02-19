@@ -1,4 +1,4 @@
-# Yandex/Bing/Google Map Tile Downlaoder/Stitcher
+# Yandex/Bing/Google Map Tile Downloader/Stitcher
 
 **Requirements:** Python 3, cv2, pygeotile, fake_useragent, tifffile
 
