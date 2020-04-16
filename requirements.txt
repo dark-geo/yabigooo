@@ -1,6 +1,7 @@
 fake_useragent
-numpy
+numpy~=1.18.2
 opencv-contrib-python
-opencv-python
-pyGeoTile
-tifffile
+opencv-python~=4.2.0.34
+pyGeoTile~=1.0.6
+tifffile~=2020.2.16
+utm

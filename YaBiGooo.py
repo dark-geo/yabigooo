@@ -241,7 +241,7 @@ class YaBiGooo:
             a_srs = 'EPSG:4326'
 
         # Georeferencing
-        os.system("gdal_translate -of GTiff -co BIGTIFF=YES -co NUM_THREADS=8 -a_ullr " +
+        os.system("gdal_translate -of GTiff -co BIGTIFF=YES -co NUM_THREADS=4 -a_ullr " +
                   str(point_start.meters[0]) + " " +
                   str(point_start.meters[1]) + " " +
                   str(point_stop.meters[0]) + " " +
@@ -250,13 +250,37 @@ class YaBiGooo:
         # warping with conversion to RGBA
         # --config GDAL_CACHEMAX 32000 - wm 1500
         os.system(
-            "gdalwarp -dstalpha -srcnodata 0 -dstnodata 0 -overwrite -wo NUM_THREADS=8 " +
+            "gdalwarp -dstalpha -srcnodata 0 -dstnodata 0 -overwrite -wo NUM_THREADS=4 " +
             "-co COMPRESS=PACKBITS -co BIGTIFF=YES " +
-            "-s_srs " + a_srs + " -t_srs EPSG:4326 result.tif  " + self.map + "_" + self.mode + "_gcps.tif")
+            "-s_srs " + a_srs + " result.tif " + self.map + "_" + self.mode + "_gcps.tif")
+            # "-s_srs " + a_srs + " -t_srs EPSG:4326 result.tif " + self.map + "_" + self.mode + "_gcps.tif")
 
         os.remove('result.tif')
 
         print('Georeferencing Complete!')
+
+    def generate_previews(self):
+        """
+        Generates previews in JPG of different resolutions: [0.6, 1, 2, 5, 10, 15, 20, 30, 60]
+        """
+
+        # get target UTM zone
+        import utm
+        _lon = (self.lon_start + self.lon_stop) / 2
+        _lat = (self.lat_start + self.lat_stop) / 2
+        _, _, zone_number, _ = utm.from_latlon(_lat, _lon)
+
+        # for RESOLUTION in [10, 15, 20, 30, 60]:
+        for RESOLUTION in [0.6, 1, 2, 5, 10, 15, 20, 30, 60]:
+            os.system(
+                "gdalwarp -t_srs '+proj=utm +zone=" + str(zone_number) + " +datum=WGS84' -of GTiff -tr " +
+                str(RESOLUTION) + " " + str(RESOLUTION) + " -r cubic " + self.map + "_" + self.mode + "_gcps.tif" + " "
+                                                                                                                    "tmpoutput.tif")
+            os.system(
+                "convert tmpoutput.tif -resize 1200x1200 -unsharp 5x2+1+0 -sampling-factor 4:2:2 -quality 95 " +
+                self.map + "_" + self.mode + "_" + str(RESOLUTION) + "m.jpg")
+
+            os.system("rm tmpoutput.tif")
 
     def downloadTiles(self):
         """
