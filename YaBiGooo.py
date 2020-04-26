@@ -89,6 +89,11 @@ class YaBiGooo:
                 self.url = 'http://a{}.ortho.tiles.virtualearth.net/tiles/a{}.jpeg?g=94'.format(randint(0, 3),
                                                                                                 tile.quad_tree)
 
+        elif 'pkk' in self.map:
+            if self.mode == 'cadastre':
+                self.url = 'https://pkk.rosreestr.ru/arcgis/rest/services/PKK6/Cadastre/MapServer/export?' \
+                           'layers=show%3A30%2C21%2C17%2C8%2C0&dpi=512&format=PNG32&bboxSR=102100&imageSR=102100&size=1024%2C1024&transparent=true&f=image&bbox={bbox}'
+
         elif 'yandex' in self.map:
             if self.mode == 'road':
                 self.url = 'https://vec02.maps.yandex.net/tiles?l=map&v=17.08.08-0&x=' + str(self.x) + \
